@@ -2,13 +2,23 @@
 File: linkedbst.py
 Author: Ken Lambert
 """
-
+from __future__ import annotations
+from ctypes import sizeof
+from time import time
+from pprint import pprint
+import re
 from abstractcollection import AbstractCollection
 from bstnode import BSTNode
 from linkedstack import LinkedStack
 from linkedqueue import LinkedQueue
 from math import log
+import itertools
+import random
+import sys
+import os, psutil
 
+
+process = psutil.Process(os.getpid())
 
 class LinkedBST(AbstractCollection):
     """An link-based binary search tree implementation."""
@@ -102,29 +112,33 @@ class LinkedBST(AbstractCollection):
     def add(self, item):
         """Adds item to the tree."""
 
-        # Helper function to search for item's position
-        def recurse(node):
-            # New item is less, go left until spot is found
-            if item < node.data:
-                if node.left == None:
-                    node.left = BSTNode(item)
-                else:
-                    recurse(node.left)
-            # New item is greater or equal,
-            # go right until spot is found
-            elif node.right == None:
-                node.right = BSTNode(item)
-            else:
-                recurse(node.right)
-                # End of recurse
 
-        # Tree is empty, so new item goes at the root
+    # End of recurse
         if self.isEmpty():
             self._root = BSTNode(item)
         # Otherwise, search for the item's spot
         else:
-            recurse(self._root)
+            node_q = set()
+            node_old = self._root
+            while node_old:
+                node = node_old
+                if item < node.data:
+                    if node.left == None:
+                        node.left = BSTNode(item)
+                        node_old = None
+                    else:
+                        node_old = node.left
+                # New item is greater or equal,
+                # go right until spot is found
+                elif node.right == None:
+                    node.right = BSTNode(item)
+                    node_old = None
+
+                else:
+                    node_old = node.right
+
         self._size += 1
+        
 
     def remove(self, item):
         """Precondition: item is in self.
@@ -233,18 +247,47 @@ class LinkedBST(AbstractCollection):
         :return: int
         '''
 
-        def height1(top):
-            '''
-            Helper function
-            :param top:
-            :return:
-            '''
+
+        # Base Case
+        if self._root is None:
+            return 0
+        
+        # Create a empty queue for level order traversal
+        q = []
+        
+        # Enqueue Root and Initialize Height
+        q.append(self._root)
+        height = 0
+    
+        while(True):
+            
+            # nodeCount(queue size) indicates number of nodes
+            # at current level
+            nodeCount = len(q)
+            if nodeCount == 0 :
+                return height
+        
+            height += 1
+    
+            # Dequeue all nodes of current level and Enqueue
+            # all nodes of next level
+            while(nodeCount > 0):
+                node = q[0]
+                q.pop(0)
+                if node.left is not None:
+                    q.append(node.left)
+                if node.right is not None:
+                    q.append(node.right)
+    
+                nodeCount -= 1
 
     def is_balanced(self):
         '''
         Return True if tree is balanced
         :return:
         '''
+        n = self._size
+        return 2 * log(n + 1, 2) - 1 > self.height()
 
     def rangeFind(self, low, high):
         '''
@@ -253,12 +296,44 @@ class LinkedBST(AbstractCollection):
         :param high:
         :return:
         '''
+        high = self._root.left
+        low = self._root.right
 
+
+    def into_list(self):
+        return [i for i in self.inorder()]
     def rebalance(self):
         '''
         Rebalances the tree.
         :return:
         '''
+        def bin_search(llist):
+            lists = []
+            lists.append(llist)
+            for lst in lists:
+                mid = len(lst)//2
+
+                if len(lst) == 1:
+
+                    self.add(lst[0])
+                elif not lst:
+                    pass
+                else:
+                    left = lst[:mid]
+                    right = lst[mid+1:]
+                    lists.append(left)
+                    lists.append(right)
+
+                    self.add(lst[mid])
+            del lists
+            
+
+        llist = self.into_list()
+        self.clear()
+        bin_search(llist)
+
+
+
 
     def successor(self, item):
         """
@@ -269,6 +344,30 @@ class LinkedBST(AbstractCollection):
         :return:
         :rtype:
         """
+        vals = []
+        def bin_search(llist):
+            mid = (int(round(len(llist)/2, 0)))
+            if len(llist) == 1:
+                if llist[0] > item:
+                    vals.append(llist[0])
+                return llist[0]
+            elif len(llist) == 0:
+                return None
+            else:
+                left = llist[:mid]
+                right = llist[mid+1:]
+                if llist[mid] > item:
+                    vals.append(llist[mid])
+                return bin_search(left), bin_search(right)
+        self._root.left, self._root.right
+        llist = self.into_list()
+        bin_search(llist)
+
+        try:
+            return min(vals)
+        except ValueError:
+            return None
+
 
     def predecessor(self, item):
         """
@@ -279,7 +378,57 @@ class LinkedBST(AbstractCollection):
         :return:
         :rtype:
         """
+        vals = []
         
+        def bin_search(llist):
+            mid = (int(round(len(llist)/2, 0)))
+            if len(llist) == 1:
+
+                if llist[0] < item:
+                    vals.append(llist[0])
+                return llist[0]
+            elif len(llist) == 0:
+                return None
+            else:
+                left = llist[:mid]
+                right = llist[mid+1:]
+
+                if llist[mid] < item:
+                    vals.append(llist[mid])
+                return bin_search(left), bin_search(right)
+        self._root.left, self._root.right
+        llist = self.into_list()
+        bin_search(llist)
+
+        try:
+            return max(vals)
+        except ValueError:
+            return None
+
+    def path_into_dict(self, path) -> dict[str, list[str]]:
+        """
+        reads dictionary as dict
+        """
+        dct = {}
+        with open(path,"r") as file:
+            
+            data = file.readline()[:-1]
+            while data:
+                if re.search(r"[A-Z]$", data):
+                    key = data
+                    dct[key] = []
+                else:
+                    dct[key].append(data)
+                data = file.readline()[:-1]
+        return dct
+    def dict_into_list(self, dct) -> list[str]:
+        """
+        turns dictionary into list
+        """
+        lst = []
+        for key in dct:
+            lst.extend(dct[key])
+        return lst
     def demo_bst(self, path):
         """
         Demonstration of efficiency binary search tree for the search tasks.
@@ -288,3 +437,53 @@ class LinkedBST(AbstractCollection):
         :return:
         :rtype:
         """
+        dct = self.path_into_dict(path)
+        lst = self.dict_into_list(dct)
+        rand_lst = random.sample(lst, 10000)
+        def lst_search(rand_lst, lst: list[str]):
+            """
+            ordered list
+            """
+            for i in rand_lst:
+                indx = lst.index(i)
+        def dct_search(rand_lst, dct: dict[str, list[str]]):
+            """
+            ordered dict
+            """
+            for i in rand_lst:
+                indx = dct[i[0].capitalize()].index(i)
+        def bst_search(rand_lst, bst: LinkedBST):
+            """
+            binary search tree 
+            """
+            for i in rand_lst:
+                bst.find(i)
+
+        def time_ex(func, *args, i=1):
+            """
+            measures execusion time for a func
+            """
+            start = time()
+            for i in range(i):
+                func(*args)
+
+            print(f"{func.__name__} time:", time() - start)
+
+        iterations = 1
+        time_ex(lst_search, rand_lst, lst, i=iterations)
+        time_ex(dct_search, rand_lst, dct, i=iterations)
+        # adding elements from ordered sequence to a tree is irrational use of binary search tree dts
+        # it doesn't take advantage of the tree's ability to split and is rather linear
+        # the time complexity is O(n) instead of O(h)
+        # e. g. it is difference of n = 200 000 and h = 42 for a dictionary
+        #
+        random.shuffle(lst)
+        tree = LinkedBST(lst)
+        print("tree height", tree.height())
+        print("is the tree balanced:",tree.is_balanced())
+        time_ex(bst_search, rand_lst, tree, i=iterations)
+        tree.rebalance()
+        print("is the tree balanced:",tree.is_balanced())
+        print("tree height:", tree.height())
+        time_ex(bst_search, rand_lst, tree, i=iterations)
+

@@ -6,7 +6,7 @@ A tester program for binary search trees.
 
 from linkedbst import LinkedBST
 import random
-
+import itertools
 def main():
 
     tree = LinkedBST()
@@ -61,14 +61,17 @@ def main():
 
 
     lyst = [113,30,68,74,45,91,88]
+    lyst = range(32)
     #random.shuffle(lyst)
     tree = LinkedBST(lyst)
     print(tree, tree.height())
-    print(tree.isBalanced())
+    print(tree.is_balanced())
     print(tree.rangeFind(30,91))
     print(tree.successor(20))
+    print(tree.successor(200))
     print(tree.predecessor(50))
     tree.rebalance()
+    print(tree.is_balanced())
     print(tree)
    #print("\nAdded ", lyst, "\n" + str(tree))
    # tree.remove(10)
@@ -76,8 +79,7 @@ def main():
     #tree.remove(12)
     #print("\nAdded ", lyst, "\n" + str(tree))
 
-
-    
+    tree.demo_bst("words.txt")
 if __name__ == "__main__":
     main()
 
